@@ -1,7 +1,7 @@
 | Language |
 |----------|
-| [🇺🇦 Українська](README_UA.md) |
-| [🇬🇧 English](README.md) |
+| [Українська](README_UA.md) |
+| [English](README.md) |
 
 # Description of all functions
 ### 1. `parse_logs(file_path)`
