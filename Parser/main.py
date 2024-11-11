@@ -1,4 +1,5 @@
 import re
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -35,27 +36,54 @@ def parse_logs(file_path):
     
     return pd.DataFrame(data), xss_attempts, sqli_attempts, idor_attempts
 
-# Основний код
-file_path = './access.log' #! Шлях до файлу з логами (можна вказати шлях через папки)
-data_frame, xss_attempts, sqli_attempts, idor_attempts = parse_logs(file_path)
+# Функція для аналізу всіх .log файлів у вказаній директорії
+def analyze_all_logs_in_directory(directory_path):
+    all_data = []
+    total_xss_attempts = 0
+    total_sqli_attempts = 0
+    total_idor_attempts = 0
 
-# Групування та сортування за комбінацією IP-адреси і URL-адреси
-ip_url_counts = data_frame.groupby(['IP', 'URL']).size().reset_index(name='Count')
-ip_url_counts = ip_url_counts.sort_values(by='Count', ascending=False)
+    # Проходимо через всі файли в директорії
+    for filename in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, filename)
+        
+        # Перевіряємо, чи файл є логом (перевірка на розширення .log)
+        if os.path.isfile(file_path) and filename.endswith('.log'):
+            print(f"Processing file: {filename}")
+            
+            # Використовуємо parse_logs для обробки кожного файлу
+            data_frame, xss_attempts, sqli_attempts, idor_attempts = parse_logs(file_path)
+            
+            # Додаємо результати до загальної статистики
+            all_data.append(data_frame)
+            total_xss_attempts += xss_attempts
+            total_sqli_attempts += sqli_attempts
+            total_idor_attempts += idor_attempts
 
-# Збереження у CSV з роздільником з одного табулятора
-ip_url_counts.to_csv('top_ip_url_full.csv', index=False, sep='\t')
-ip_url_counts.head(10).to_csv('top_ip_url_10.csv', index=False, sep='\t')
-ip_url_counts.head(100).to_csv('top_ip_url_100.csv', index=False, sep='\t')
+    # Об'єднуємо всі дані в один DataFrame
+    combined_data = pd.concat(all_data, ignore_index=True)
+    
+    # Групування та сортування за IP-адресою та URL
+    ip_url_counts = combined_data.groupby(['IP', 'URL']).size().reset_index(name='Count')
+    ip_url_counts = ip_url_counts.sort_values(by='Count', ascending=False)
 
-# Відображення топ-10 комбінацій IP та URL за кількістю запитів, показуючи IP-адреси на графіку
-ip_url_counts.head(10).plot(kind='barh', x='IP', y='Count', title='Top 10 IPs by Request Count')
-plt.xlabel('Number of Requests')
-plt.ylabel('IP Addresses')
-plt.gca().invert_yaxis()
-plt.show()
+    # Зберігаємо повний звіт у CSV
+    ip_url_counts.to_csv('top_ip_url_full.csv', index=False, sep='\t')
+    ip_url_counts.head(10).to_csv('top_ip_url_10.csv', index=False, sep='\t')
+    ip_url_counts.head(100).to_csv('top_ip_url_100.csv', index=False, sep='\t')
 
-# Виведення статистики атак
-print(f"Кількість XSS атак: {xss_attempts}")
-print(f"Кількість SQL ін'єкцій: {sqli_attempts}")
-print(f"Кількість IDOR атак: {idor_attempts}")
+    # Відображення топ-10 IP на графіку
+    ip_url_counts.head(10).plot(kind='barh', x='IP', y='Count', title='Top 10 IPs by Request Count')
+    plt.xlabel('Number of Requests')
+    plt.ylabel('IP Addresses')
+    plt.gca().invert_yaxis()
+    plt.show()
+
+    # Виведення статистики атак
+    print(f"Загальна кількість XSS атак: {total_xss_attempts}")
+    print(f"Загальна кількість SQL ін'єкцій: {total_sqli_attempts}")
+    print(f"Загальна кількість IDOR атак: {total_idor_attempts}")
+
+# Виклик функції для аналізу всіх файлів у вказаній директорії
+directory_path = './'  # Вкажіть шлях до директорії з файлами логів
+analyze_all_logs_in_directory(directory_path)
